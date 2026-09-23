@@ -55,15 +55,16 @@ function aligned( v ) {
   return Math.abs( v - Math.round( v ) ) < 1e-3;
 }
 
-// Una celda es muro para el actor dado?
+// Una celda es muro para el actor dado (string 'pacman' u objeto fantasma)?
 //   pacman: bloqueado por pared (1) y puerta (3)
-//   ghost:  bloqueado solo por pared (1)
+//   ghost:  bloqueado por pared (1); la puerta (3) lo bloquea solo si ya salio
+//           de la pen (inPen false), para que no pueda volver a entrar.
 function isWall( grid, x, y, actor ) {
   if ( y < 0 || y >= grid.length ) return true;
   if ( x < 0 || x >= grid[ 0 ].length ) return true;
   const v = grid[ y ][ x ];
   if ( v === 1 ) return true;
-  if ( v === 3 && actor === 'pacman' ) return true;
+  if ( v === 3 && ( actor === 'pacman' || actor.inPen === false ) ) return true;
   return false;
 }
 
@@ -115,9 +116,35 @@ function movePacman( game ) {
   wrapTunnel( p, width );
 }
 
+// Salida guionizada: el fantasma cruza hasta la columna de la puerta (x = 13)
+// y sube por ella hasta la fila 11, donde pasa a inPen = false (ya afuera).
+function moveGhostExit( game, g ) {
+  if ( g.x !== 13 ) {
+    g.dir = g.x < 13 ? 'right' : 'left';
+    g.x += ( g.x < 13 ? 1 : -1 ) * g.speed;
+    if ( Math.abs( g.x - 13 ) <= g.speed ) g.x = 13;
+    return;
+  }
+  g.dir = 'up';
+  g.y -= g.speed;
+  if ( g.y <= 11 ) {
+    g.y = 11;
+    g.inPen = false;
+  }
+}
+
 function moveGhost( game, g ) {
   const grid = game.grid;
   const width = grid[ 0 ].length;
+
+  // Dentro de la pen esperando su turno: no se mueve.
+  if ( g.inPen && g.exitTimer > 0 ) return;
+  // Salida guionizada: se mueve por el camino predefinido, sin decideGhost
+  // (la regla de la puerta solo aplica a los fantasmas ya fuera).
+  if ( g.inPen ) {
+    moveGhostExit( game, g );
+    return;
+  }
 
   if ( aligned( g.x ) && aligned( g.y ) ) {
     g.x = Math.round( g.x );
@@ -127,7 +154,7 @@ function moveGhost( game, g ) {
     } else {
       decideGhost( game, g );
     }
-    if ( !canMove( grid, g.x, g.y, g.dir, 'ghost' ) ) return;
+    if ( !canMove( grid, g.x, g.y, g.dir, g ) ) return;
   }
 
   const d = DIRS[ g.dir ];
@@ -150,6 +177,8 @@ function resetPositions( game ) {
     g.exitTimer = GHOST_DEFS[ g.kind ].exitDelay;
     g.forcedReverse = false;
   } );
+  // La muerte reinicia tambien la fase de fantasmas: staging y modo scatter.
+  game.ghostPhase = { mode: 'scatter', index: 0, framesLeft: SCATTER_SCHEDULE[ 0 ] };
 }
 
 function collides( a, b ) {
@@ -185,7 +214,10 @@ function tickGhostPhase( game ) {
 function update( game ) {
   tickGhostPhase( game );
   movePacman( game );
-  game.ghosts.forEach( ( g ) => moveGhost( game, g ) );
+  game.ghosts.forEach( ( g ) => {
+    if ( g.inPen && g.exitTimer > 0 ) g.exitTimer--;
+    moveGhost( game, g );
+  } );
 
   for ( const g of game.ghosts ) {
     if ( collides( game.pacman, g ) ) {
