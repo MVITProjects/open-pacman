@@ -42,8 +42,9 @@ function createGame() {
       dir: 'up',
       speed: GHOST_SPEED,
       kind: g.kind,
-      // exitDelay 0 (blinky) => arranca fuera de la pen.
-      inPen: GHOST_DEFS[ g.kind ].exitDelay > 0,
+      // Los cuatro arrancan dentro de la pen; blinky (exitDelay 0) sale enseguida.
+      // inPen no se deriva de exitDelay: debe ser true siempre.
+      inPen: true,
       exitTimer: GHOST_DEFS[ g.kind ].exitDelay,
       forcedReverse: false,
     } ) ),
@@ -173,7 +174,8 @@ function resetPositions( game ) {
     g.x = GHOST_STARTS[ i ].x;
     g.y = GHOST_STARTS[ i ].y;
     g.dir = 'up';
-    g.inPen = GHOST_DEFS[ g.kind ].exitDelay > 0;
+    // Igual que en createGame: los cuatro se re-estacionan dentro de la pen.
+    g.inPen = true;
     g.exitTimer = GHOST_DEFS[ g.kind ].exitDelay;
     g.forcedReverse = false;
   } );
