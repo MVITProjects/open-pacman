@@ -57,7 +57,10 @@ function decideGhost( game, g ) {
   // Sin salida (callejon): permitir el giro de 180.
   const choices = options.length ? options : [ '' + OPPOSITE[ g.dir ] ];
 
-  const target = chaseTarget( game, g );
+  const target =
+    game.ghostPhase && game.ghostPhase.mode === 'scatter'
+      ? GHOST_DEFS[ g.kind ].scatter
+      : chaseTarget( game, g );
   let best = choices[ 0 ];
   let bestDist = Infinity;
   for ( const dir of choices ) {

@@ -45,7 +45,9 @@ function createGame() {
       // exitDelay 0 (blinky) => arranca fuera de la pen.
       inPen: GHOST_DEFS[ g.kind ].exitDelay > 0,
       exitTimer: GHOST_DEFS[ g.kind ].exitDelay,
+      forcedReverse: false,
     } ) ),
+    ghostPhase: { mode: 'scatter', index: 0, framesLeft: SCATTER_SCHEDULE[ 0 ] },
   };
 }
 
@@ -120,7 +122,11 @@ function moveGhost( game, g ) {
   if ( aligned( g.x ) && aligned( g.y ) ) {
     g.x = Math.round( g.x );
     g.y = Math.round( g.y );
-    decideGhost( game, g );
+    if ( g.forcedReverse ) {
+      g.forcedReverse = false; // el 180 forzado ya se cumple una celda completa
+    } else {
+      decideGhost( game, g );
+    }
     if ( !canMove( grid, g.x, g.y, g.dir, 'ghost' ) ) return;
   }
 
@@ -142,6 +148,7 @@ function resetPositions( game ) {
     g.dir = 'up';
     g.inPen = GHOST_DEFS[ g.kind ].exitDelay > 0;
     g.exitTimer = GHOST_DEFS[ g.kind ].exitDelay;
+    g.forcedReverse = false;
   } );
 }
 
@@ -149,7 +156,34 @@ function collides( a, b ) {
   return Math.abs( a.x - b.x ) < 0.5 && Math.abs( a.y - b.y ) < 0.5;
 }
 
+// Cuenta atras de la fase de fantasmas. Al agotarse la fase actual avanza al
+// siguiente tramo del horario (par = scatter, impar = chase) e invierte el
+// sentido de todo fantasma fuera de la pen. Agotado el horario -> chase eterno.
+function tickGhostPhase( game ) {
+  const phase = game.ghostPhase;
+  phase.framesLeft--;
+  if ( phase.framesLeft > 0 ) return;
+
+  phase.index++;
+  if ( phase.index < SCATTER_SCHEDULE.length ) {
+    phase.mode = phase.index % 2 === 0 ? 'scatter' : 'chase';
+    phase.framesLeft = SCATTER_SCHEDULE[ phase.index ];
+  } else {
+    phase.mode = 'chase';
+    phase.framesLeft = Infinity;
+  }
+
+  game.ghosts.forEach( ( g ) => {
+    if ( g.inPen ) return;
+    g.dir = OPPOSITE[ g.dir ];
+    // Si esta justo en una interseccion, marca el giro forzado para que el
+    // proximo decideGhost no lo pise de inmediato y el 180 se vea una celda.
+    if ( aligned( g.x ) && aligned( g.y ) ) g.forcedReverse = true;
+  } );
+}
+
 function update( game ) {
+  tickGhostPhase( game );
   movePacman( game );
   game.ghosts.forEach( ( g ) => moveGhost( game, g ) );
 
