@@ -47,6 +47,7 @@ function createGame() {
       inPen: true,
       exitTimer: GHOST_DEFS[ g.kind ].exitDelay,
       forcedReverse: false,
+      eaten: false, // true mientras es "ojos" volviendo a la pen
     } ) ),
     ghostPhase: { mode: 'scatter', index: 0, framesLeft: SCATTER_SCHEDULE[ 0 ] },
     frightTimer: 0, // frames restantes de modo asustado
@@ -152,6 +153,8 @@ function moveGhost( game, g ) {
 
   // Dentro de la pen esperando su turno: no se mueve.
   if ( g.inPen && g.exitTimer > 0 ) return;
+  // Comido (ojos): no se mueve este paso.
+  if ( g.eaten ) return;
   // Salida guionizada: se mueve por el camino predefinido, sin decideGhost
   // (la regla de la puerta solo aplica a los fantasmas ya fuera).
   if ( g.inPen ) {
@@ -248,16 +251,27 @@ function update( game ) {
     moveGhost( game, g );
   } );
 
+  // Colisiones pacman-fantasma. El orden dentro de update define el caso
+  // limite: el timer de fright ya se decremento mas arriba, por lo que llegar
+  // aqui con timer en 0 significa que el fright termino en este mismo frame y
+  // el choque mata. Los fantasmas comidos (ojos) no son comibles ni letales.
   for ( const g of game.ghosts ) {
-    if ( collides( game.pacman, g ) ) {
-      game.lives--;
-      if ( game.lives <= 0 ) {
-        game.state = 'lost';
-        return;
-      }
-      resetPositions( game );
-      break;
+    if ( !collides( game.pacman, g ) ) continue;
+    if ( g.eaten ) continue;
+    if ( game.frightTimer > 0 ) {
+      // Fantasma asustado comido: cadena 200 -> 400 -> 800 -> 1600.
+      game.score += 200 * 2 ** game.frightChain;
+      game.frightChain++;
+      g.eaten = true;
+      continue;
     }
+    game.lives--;
+    if ( game.lives <= 0 ) {
+      game.state = 'lost';
+      return;
+    }
+    resetPositions( game );
+    break;
   }
 
   if ( game.dotsRemaining <= 0 ) game.state = 'won';
