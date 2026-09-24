@@ -66,14 +66,18 @@ function drawDoor( ctx, grid ) {
   ctx.stroke();
 }
 
-function drawDots( ctx, grid ) {
+function drawDots( ctx, grid, frame ) {
   ctx.fillStyle = DOT_COLOR;
   for ( let y = 0; y < grid.length; y++ ) {
     for ( let x = 0; x < grid[ 0 ].length; x++ ) {
-      if ( grid[ y ][ x ] !== 2 ) continue;
+      const v = grid[ y ][ x ];
+      if ( v !== 2 && v !== 4 ) continue;
+      // Power pellet: radio mayor y parpadeo en ventanas alternas de ~15 frames.
+      if ( v === 4 && Math.floor( frame / 15 ) % 2 === 1 ) continue;
+      const r = v === 4 ? 6 : 2.5;
       const { cx, cy } = cellCenter( x, y );
       ctx.beginPath();
-      ctx.arc( cx, cy, 2.5, 0, Math.PI * 2 );
+      ctx.arc( cx, cy, r, 0, Math.PI * 2 );
       ctx.fill();
     }
   }
@@ -154,7 +158,7 @@ function draw( ctx, game, frame ) {
 
   drawWalls( ctx, grid );
   drawDoor( ctx, grid );
-  drawDots( ctx, grid );
+  drawDots( ctx, grid, frame );
   drawPacman( ctx, game.pacman, frame );
   game.ghosts.forEach( ( g ) => drawGhost( ctx, g, GHOST_DEFS[ g.kind ].color ) );
   drawHUD( ctx, game, W );
