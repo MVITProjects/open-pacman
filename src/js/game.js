@@ -147,14 +147,39 @@ function moveGhostExit( game, g ) {
   }
 }
 
+// Re-entrada guionizada (espejo de moveGhostExit): los ojos bajan por la
+// puerta desde (13,11) hasta el interior de la pen (13,14), donde el fantasma
+// se regenera y re-sale enseguida (exitTimer 0 vuelve a lanzar la salida).
+function moveGhostReenter( game, g ) {
+  // Como en la salida: primero centrar en la columna de la puerta (llega a
+  // menos de EYES_SPEED de ella), luego moverse en vertical.
+  if ( g.x !== 13 ) {
+    g.x = 13;
+    return;
+  }
+  g.dir = 'down';
+  g.y += EYES_SPEED;
+  if ( g.y >= 14 ) {
+    g.y = 14;
+    g.eaten = false;
+    g.inPen = true;
+    g.exitTimer = 0;
+  }
+}
+
 function moveGhost( game, g ) {
   const grid = game.grid;
   const width = grid[ 0 ].length;
 
   // Dentro de la pen esperando su turno: no se mueve.
   if ( g.inPen && g.exitTimer > 0 ) return;
-  // Comido (ojos): no se mueve este paso.
-  if ( g.eaten ) return;
+  // Ojos (comido) que alcanzan la puerta: re-entrada guionizada a la pen
+  // (espejo de la salida guionizada). El resto del regreso es un viaje
+  // normal por el laberinto, con decideGhost apuntando a la puerta.
+  if ( g.eaten && g.y >= 11 && g.y < 14 && Math.abs( g.x - 13 ) <= EYES_SPEED ) {
+    moveGhostReenter( game, g );
+    return;
+  }
   // Salida guionizada: se mueve por el camino predefinido, sin decideGhost
   // (la regla de la puerta solo aplica a los fantasmas ya fuera).
   if ( g.inPen ) {
@@ -174,8 +199,8 @@ function moveGhost( game, g ) {
   }
 
   // Velocidad efectiva derivada del estado por frame (g.speed no se muta en
-  // las transiciones): asustado fuera de la pen -> mitad de velocidad.
-  const speed = game.frightTimer > 0 ? FRIGHT_SPEED : g.speed;
+  // las transiciones): ojos -> el doble; asustado -> mitad; el resto, normal.
+  const speed = g.eaten ? EYES_SPEED : game.frightTimer > 0 ? FRIGHT_SPEED : g.speed;
   const d = DIRS[ g.dir ];
   g.x += d.x * speed;
   g.y += d.y * speed;
@@ -263,6 +288,10 @@ function update( game ) {
       game.score += 200 * 2 ** game.frightChain;
       game.frightChain++;
       g.eaten = true;
+      // Ajuste a la celda al comer: EYES_SPEED (0.2) solo re-alinea desde
+      // posiciones enteras; sin este ajuste los ojos cruzarian muros.
+      g.x = Math.round( g.x );
+      g.y = Math.round( g.y );
       continue;
     }
     game.lives--;
