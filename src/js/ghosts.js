@@ -14,6 +14,11 @@ const GHOST_DEFS = {
 // Frames a ~60fps. Indice par = scatter, impar = chase; agotado -> chase permanente.
 const SCATTER_SCHEDULE = [ 420, 1200, 420, 1200, 300, 1200, 300 ];
 
+// Fright: duracion, velocidad asustado y velocidad de los ojos.
+const FRIGHT_FRAMES = 360; // 6 s a ~60fps; parpadeo blanco en los ultimos 120
+const FRIGHT_SPEED = 0.05; // mitad de GHOST_SPEED
+const EYES_SPEED = 0.2;    // 2x GHOST_SPEED, vuelve rapido a la pen
+
 // Tile objetivo de persecucion segun la personalidad del fantasma.
 function chaseTarget( game, g ) {
   const p = game.pacman;
@@ -57,8 +62,19 @@ function decideGhost( game, g ) {
   // Sin salida (callejon): permitir el giro de 180.
   const choices = options.length ? options : [ '' + OPPOSITE[ g.dir ] ];
 
-  const target =
-    game.ghostPhase && game.ghostPhase.mode === 'scatter'
+  // Fright: giro aleatorio entre las opciones validas, sin retroceder salvo
+  // callejon (misma regla de opciones que siempre). Los ojos (comidos) no
+  // vagan: siguen apuntando a la puerta.
+  if ( game.frightTimer > 0 && !g.eaten ) {
+    g.dir = choices[ Math.floor( Math.random() * choices.length ) ];
+    return;
+  }
+
+  // Objetivo segun estado: ojos -> puerta de la pen; scatter -> esquina;
+  // chase -> personalidad.
+  const target = g.eaten
+    ? { x: 13, y: 11 }
+    : game.ghostPhase && game.ghostPhase.mode === 'scatter'
       ? GHOST_DEFS[ g.kind ].scatter
       : chaseTarget( game, g );
   let best = choices[ 0 ];
@@ -78,4 +94,7 @@ function decideGhost( game, g ) {
 
 window.GHOST_DEFS = GHOST_DEFS;
 window.SCATTER_SCHEDULE = SCATTER_SCHEDULE;
+window.FRIGHT_FRAMES = FRIGHT_FRAMES;
+window.FRIGHT_SPEED = FRIGHT_SPEED;
+window.EYES_SPEED = EYES_SPEED;
 window.decideGhost = decideGhost;

@@ -21,7 +21,7 @@ function createGame() {
   grid[ PACMAN_START.y ][ PACMAN_START.x ] = 0;
 
   let dots = 0;
-  for ( const row of grid ) for ( const v of row ) if ( v === 2 ) dots++;
+  for ( const row of grid ) for ( const v of row ) if ( v === 2 || v === 4 ) dots++;
 
   return {
     state: 'start',
@@ -47,8 +47,11 @@ function createGame() {
       inPen: true,
       exitTimer: GHOST_DEFS[ g.kind ].exitDelay,
       forcedReverse: false,
+      eaten: false, // true mientras es "ojos" volviendo a la pen
     } ) ),
     ghostPhase: { mode: 'scatter', index: 0, framesLeft: SCATTER_SCHEDULE[ 0 ] },
+    frightTimer: 0, // frames restantes de modo asustado
+    frightChain: 0, // fantasmas comidos en este periodo de fright
   };
 }
 
@@ -107,6 +110,16 @@ function movePacman( game ) {
       game.score += 10;
       game.dotsRemaining--;
     }
+    // Comer power pellet: 50 pts, activa el fright (timer completo, cadena a
+    // cero) y obliga a todo fantasma activo a girar 180.
+    if ( grid[ p.y ][ p.x ] === 4 ) {
+      grid[ p.y ][ p.x ] = 0;
+      game.score += 50;
+      game.dotsRemaining--;
+      game.frightTimer = FRIGHT_FRAMES;
+      game.frightChain = 0;
+      reverseGhosts( game );
+    }
     // Si no puede seguir, se detiene en la celda.
     if ( !canMove( grid, p.x, p.y, p.dir, 'pacman' ) ) return;
   }
@@ -134,12 +147,39 @@ function moveGhostExit( game, g ) {
   }
 }
 
+// Re-entrada guionizada (espejo de moveGhostExit): los ojos bajan por la
+// puerta desde (13,11) hasta el interior de la pen (13,14), donde el fantasma
+// se regenera y re-sale enseguida (exitTimer 0 vuelve a lanzar la salida).
+function moveGhostReenter( game, g ) {
+  // Como en la salida: primero centrar en la columna de la puerta (llega a
+  // menos de EYES_SPEED de ella), luego moverse en vertical.
+  if ( g.x !== 13 ) {
+    g.x = 13;
+    return;
+  }
+  g.dir = 'down';
+  g.y += EYES_SPEED;
+  if ( g.y >= 14 ) {
+    g.y = 14;
+    g.eaten = false;
+    g.inPen = true;
+    g.exitTimer = 0;
+  }
+}
+
 function moveGhost( game, g ) {
   const grid = game.grid;
   const width = grid[ 0 ].length;
 
   // Dentro de la pen esperando su turno: no se mueve.
   if ( g.inPen && g.exitTimer > 0 ) return;
+  // Ojos (comido) que alcanzan la puerta: re-entrada guionizada a la pen
+  // (espejo de la salida guionizada). El resto del regreso es un viaje
+  // normal por el laberinto, con decideGhost apuntando a la puerta.
+  if ( g.eaten && g.y >= 11 && g.y < 14 && Math.abs( g.x - 13 ) <= EYES_SPEED ) {
+    moveGhostReenter( game, g );
+    return;
+  }
   // Salida guionizada: se mueve por el camino predefinido, sin decideGhost
   // (la regla de la puerta solo aplica a los fantasmas ya fuera).
   if ( g.inPen ) {
@@ -158,9 +198,12 @@ function moveGhost( game, g ) {
     if ( !canMove( grid, g.x, g.y, g.dir, g ) ) return;
   }
 
+  // Velocidad efectiva derivada del estado por frame (g.speed no se muta en
+  // las transiciones): ojos -> el doble; asustado -> mitad; el resto, normal.
+  const speed = g.eaten ? EYES_SPEED : game.frightTimer > 0 ? FRIGHT_SPEED : g.speed;
   const d = DIRS[ g.dir ];
-  g.x += d.x * g.speed;
-  g.y += d.y * g.speed;
+  g.x += d.x * speed;
+  g.y += d.y * speed;
   wrapTunnel( g, width );
 }
 
@@ -178,9 +221,13 @@ function resetPositions( game ) {
     g.inPen = true;
     g.exitTimer = GHOST_DEFS[ g.kind ].exitDelay;
     g.forcedReverse = false;
+    g.eaten = false;
   } );
   // La muerte reinicia tambien la fase de fantasmas: staging y modo scatter.
   game.ghostPhase = { mode: 'scatter', index: 0, framesLeft: SCATTER_SCHEDULE[ 0 ] };
+  // Y limpia todo el estado de fright: timer, cadena y ojos pendientes.
+  game.frightTimer = 0;
+  game.frightChain = 0;
 }
 
 function collides( a, b ) {
@@ -204,6 +251,12 @@ function tickGhostPhase( game ) {
     phase.framesLeft = Infinity;
   }
 
+  reverseGhosts( game );
+}
+
+// Invierte el sentido de todo fantasma fuera de la pen. Compartido por el
+// cambio de fase scatter/chase y por comer una power pellet.
+function reverseGhosts( game ) {
   game.ghosts.forEach( ( g ) => {
     if ( g.inPen ) return;
     g.dir = OPPOSITE[ g.dir ];
@@ -214,23 +267,44 @@ function tickGhostPhase( game ) {
 }
 
 function update( game ) {
-  tickGhostPhase( game );
+  // Mientras dura el fright el conteo scatter/chase queda pausado; al agotarse
+  // el timer reanuda la misma fase donde se detuvo.
+  if ( game.frightTimer > 0 ) {
+    game.frightTimer--;
+  } else {
+    tickGhostPhase( game );
+  }
   movePacman( game );
   game.ghosts.forEach( ( g ) => {
     if ( g.inPen && g.exitTimer > 0 ) g.exitTimer--;
     moveGhost( game, g );
   } );
 
+  // Colisiones pacman-fantasma. El orden dentro de update define el caso
+  // limite: el timer de fright ya se decremento mas arriba, por lo que llegar
+  // aqui con timer en 0 significa que el fright termino en este mismo frame y
+  // el choque mata. Los fantasmas comidos (ojos) no son comibles ni letales.
   for ( const g of game.ghosts ) {
-    if ( collides( game.pacman, g ) ) {
-      game.lives--;
-      if ( game.lives <= 0 ) {
-        game.state = 'lost';
-        return;
-      }
-      resetPositions( game );
-      break;
+    if ( !collides( game.pacman, g ) ) continue;
+    if ( g.eaten ) continue;
+    if ( game.frightTimer > 0 ) {
+      // Fantasma asustado comido: cadena 200 -> 400 -> 800 -> 1600.
+      game.score += 200 * 2 ** game.frightChain;
+      game.frightChain++;
+      g.eaten = true;
+      // Ajuste a la celda al comer: EYES_SPEED (0.2) solo re-alinea desde
+      // posiciones enteras; sin este ajuste los ojos cruzarian muros.
+      g.x = Math.round( g.x );
+      g.y = Math.round( g.y );
+      continue;
     }
+    game.lives--;
+    if ( game.lives <= 0 ) {
+      game.state = 'lost';
+      return;
+    }
+    resetPositions( game );
+    break;
   }
 
   if ( game.dotsRemaining <= 0 ) game.state = 'won';
