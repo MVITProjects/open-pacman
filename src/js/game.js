@@ -49,6 +49,8 @@ function createGame() {
       forcedReverse: false,
     } ) ),
     ghostPhase: { mode: 'scatter', index: 0, framesLeft: SCATTER_SCHEDULE[ 0 ] },
+    frightTimer: 0, // frames restantes de modo asustado
+    frightChain: 0, // fantasmas comidos en este periodo de fright
   };
 }
 
@@ -106,6 +108,16 @@ function movePacman( game ) {
       grid[ p.y ][ p.x ] = 0;
       game.score += 10;
       game.dotsRemaining--;
+    }
+    // Comer power pellet: 50 pts, activa el fright (timer completo, cadena a
+    // cero) y obliga a todo fantasma activo a girar 180.
+    if ( grid[ p.y ][ p.x ] === 4 ) {
+      grid[ p.y ][ p.x ] = 0;
+      game.score += 50;
+      game.dotsRemaining--;
+      game.frightTimer = FRIGHT_FRAMES;
+      game.frightChain = 0;
+      reverseGhosts( game );
     }
     // Si no puede seguir, se detiene en la celda.
     if ( !canMove( grid, p.x, p.y, p.dir, 'pacman' ) ) return;
@@ -204,6 +216,12 @@ function tickGhostPhase( game ) {
     phase.framesLeft = Infinity;
   }
 
+  reverseGhosts( game );
+}
+
+// Invierte el sentido de todo fantasma fuera de la pen. Compartido por el
+// cambio de fase scatter/chase y por comer una power pellet.
+function reverseGhosts( game ) {
   game.ghosts.forEach( ( g ) => {
     if ( g.inPen ) return;
     g.dir = OPPOSITE[ g.dir ];
@@ -214,7 +232,13 @@ function tickGhostPhase( game ) {
 }
 
 function update( game ) {
-  tickGhostPhase( game );
+  // Mientras dura el fright el conteo scatter/chase queda pausado; al agotarse
+  // el timer reanuda la misma fase donde se detuvo.
+  if ( game.frightTimer > 0 ) {
+    game.frightTimer--;
+  } else {
+    tickGhostPhase( game );
+  }
   movePacman( game );
   game.ghosts.forEach( ( g ) => {
     if ( g.inPen && g.exitTimer > 0 ) g.exitTimer--;

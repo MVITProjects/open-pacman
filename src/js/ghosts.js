@@ -14,6 +14,9 @@ const GHOST_DEFS = {
 // Frames a ~60fps. Indice par = scatter, impar = chase; agotado -> chase permanente.
 const SCATTER_SCHEDULE = [ 420, 1200, 420, 1200, 300, 1200, 300 ];
 
+// Fright: duracion en frames. 6 s a ~60fps; parpadeo blanco en los ultimos 120.
+const FRIGHT_FRAMES = 360;
+
 // Tile objetivo de persecucion segun la personalidad del fantasma.
 function chaseTarget( game, g ) {
   const p = game.pacman;
@@ -78,4 +81,5 @@ function decideGhost( game, g ) {
 
 window.GHOST_DEFS = GHOST_DEFS;
 window.SCATTER_SCHEDULE = SCATTER_SCHEDULE;
+window.FRIGHT_FRAMES = FRIGHT_FRAMES;
 window.decideGhost = decideGhost;
