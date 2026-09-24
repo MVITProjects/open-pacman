@@ -170,9 +170,12 @@ function moveGhost( game, g ) {
     if ( !canMove( grid, g.x, g.y, g.dir, g ) ) return;
   }
 
+  // Velocidad efectiva derivada del estado por frame (g.speed no se muta en
+  // las transiciones): asustado fuera de la pen -> mitad de velocidad.
+  const speed = game.frightTimer > 0 ? FRIGHT_SPEED : g.speed;
   const d = DIRS[ g.dir ];
-  g.x += d.x * g.speed;
-  g.y += d.y * g.speed;
+  g.x += d.x * speed;
+  g.y += d.y * speed;
   wrapTunnel( g, width );
 }
 

@@ -14,8 +14,9 @@ const GHOST_DEFS = {
 // Frames a ~60fps. Indice par = scatter, impar = chase; agotado -> chase permanente.
 const SCATTER_SCHEDULE = [ 420, 1200, 420, 1200, 300, 1200, 300 ];
 
-// Fright: duracion en frames. 6 s a ~60fps; parpadeo blanco en los ultimos 120.
-const FRIGHT_FRAMES = 360;
+// Fright: duracion y velocidad asustado.
+const FRIGHT_FRAMES = 360; // 6 s a ~60fps; parpadeo blanco en los ultimos 120
+const FRIGHT_SPEED = 0.05; // mitad de GHOST_SPEED
 
 // Tile objetivo de persecucion segun la personalidad del fantasma.
 function chaseTarget( game, g ) {
@@ -60,6 +61,13 @@ function decideGhost( game, g ) {
   // Sin salida (callejon): permitir el giro de 180.
   const choices = options.length ? options : [ '' + OPPOSITE[ g.dir ] ];
 
+  // Fright: giro aleatorio entre las opciones validas, sin retroceder salvo
+  // callejon (misma regla de opciones que siempre).
+  if ( game.frightTimer > 0 ) {
+    g.dir = choices[ Math.floor( Math.random() * choices.length ) ];
+    return;
+  }
+
   const target =
     game.ghostPhase && game.ghostPhase.mode === 'scatter'
       ? GHOST_DEFS[ g.kind ].scatter
@@ -82,4 +90,5 @@ function decideGhost( game, g ) {
 window.GHOST_DEFS = GHOST_DEFS;
 window.SCATTER_SCHEDULE = SCATTER_SCHEDULE;
 window.FRIGHT_FRAMES = FRIGHT_FRAMES;
+window.FRIGHT_SPEED = FRIGHT_SPEED;
 window.decideGhost = decideGhost;

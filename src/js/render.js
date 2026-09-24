@@ -5,6 +5,7 @@ const TILE = 20;
 const WALL_COLOR = '#2121ff';
 const DOOR_COLOR = '#ffb8ff';
 const DOT_COLOR = '#ffb897';
+const FRIGHTENED_COLOR = '#2121ff';
 
 function cellCenter( x, y ) {
   return { cx: x * TILE + TILE / 2, cy: y * TILE + TILE / 2 };
@@ -160,7 +161,16 @@ function draw( ctx, game, frame ) {
   drawDoor( ctx, grid );
   drawDots( ctx, grid, frame );
   drawPacman( ctx, game.pacman, frame );
-  game.ghosts.forEach( ( g ) => drawGhost( ctx, g, GHOST_DEFS[ g.kind ].color ) );
+  game.ghosts.forEach( ( g ) => {
+    let color = GHOST_DEFS[ g.kind ].color;
+    // Fright: cuerpo azul; parpadeo a blanco en ventanas alternas de ~12
+    // frames durante los ultimos 120 frames del timer.
+    if ( game.frightTimer > 0 ) {
+      const flash = game.frightTimer <= 120 && Math.floor( frame / 12 ) % 2 === 1;
+      color = flash ? '#fff' : FRIGHTENED_COLOR;
+    }
+    drawGhost( ctx, g, color );
+  } );
   drawHUD( ctx, game, W );
 }
 
