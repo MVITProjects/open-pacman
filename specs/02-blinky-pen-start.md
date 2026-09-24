@@ -1,6 +1,6 @@
 # SPEC 02 — Blinky starts inside the ghost pen
 
-> **Status:** Approved
+> **Status:** Implemented
 > **Depends on:** SPEC 01
 > **Date:** 2026-09-23
 > **Objective:** Move Blinky's start from outside the pen to inside it at (14,14), so all four ghosts begin staged in the pen and Blinky still exits first through the door.
