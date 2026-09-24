@@ -1,6 +1,6 @@
 # SPEC 01 — Ghost AI: four distinct personalities
 
-> **Status:** Approved
+> **Status:** Implemented
 > **Depends on:** none
 > **Date:** 2026-09-23
 > **Objective:** Replace the two-ghost placeholder AI with four ghosts using their classic arcade personalities — aggressive Blinky, ambushing Pinky, flanking Inky, shy Clyde — with scatter/chase phase alternation and staged pen exits.

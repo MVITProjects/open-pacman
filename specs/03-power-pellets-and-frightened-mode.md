@@ -1,6 +1,6 @@
 # SPEC 03 — Power pellets and frightened mode
 
-> **Status:** Approved
+> **Status:** Implemented
 > **Depends on:** SPEC 01, SPEC 02
 > **Date:** 2026-09-24
 > **Objective:** Add the four arcade power pellets so eating one sends the ghosts into frightened mode — blue, slow, random and edible — with the 200→1600 scoring chain and eaten ghosts returning to the pen as eyes before re-exiting.
