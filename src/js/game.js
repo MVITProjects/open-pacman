@@ -221,9 +221,13 @@ function resetPositions( game ) {
     g.inPen = true;
     g.exitTimer = GHOST_DEFS[ g.kind ].exitDelay;
     g.forcedReverse = false;
+    g.eaten = false;
   } );
   // La muerte reinicia tambien la fase de fantasmas: staging y modo scatter.
   game.ghostPhase = { mode: 'scatter', index: 0, framesLeft: SCATTER_SCHEDULE[ 0 ] };
+  // Y limpia todo el estado de fright: timer, cadena y ojos pendientes.
+  game.frightTimer = 0;
+  game.frightChain = 0;
 }
 
 function collides( a, b ) {
